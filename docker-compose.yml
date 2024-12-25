@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build:
+      context: ../Projet AEC/Eureka
+      dockerfile: Dockerfile
+    ports:
+      - "8761:8761"
+    container_name: eureka-server
+
+  f-service:
+    build:
+      context: ../Projet AEC/factorization
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    container_name: f-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+
+  orchestration-service:
+    build:
+      context: ../Projet AEC/Orchestration
+      dockerfile: Dockerfile
+    ports:
+      - "8083:8083"
+    container_name: orchestration-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+
+  polynomial-service:
+    build:
+      context: ../Projet AEC/polynome/polynome
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    container_name: polynomial-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/polynomials_db
+      - SPRING_DATASOURCE_USERNAME=root
+      - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.MySQLDialect
+    depends_on:
+      - eureka-server
+      - mysql
+
+  roots-service:
+    build:
+      context: ../Projet AEC/roots/roots
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    container_name: roots-service
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - eureka-server
+
+  frontend:
+    build:
+      context: ../Projet AEC/PolynomialFront
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    container_name: react-frontend
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    restart: always
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: polynomials_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: user
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: phpmyadmin
+    restart: always
+    ports:
+      - "8084:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: root
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
